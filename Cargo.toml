@@ -1,0 +1,17 @@
+[package]
+name = "actix-warp-subconverter"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+actix-web = "4.5.1"
+serde_urlencoded = "0.7.1"
+serde = { version = "1.0", features = ["derive"] }
+serde_yaml = "0.9.34"
+serde_json = "1.0.115"
+rand = "0.8.5"
+ipnetwork = "0.20.0"
+base64 = "0.13"
+urlencoding = "2.1.3"
