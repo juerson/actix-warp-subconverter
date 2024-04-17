@@ -77,7 +77,7 @@ async fn subconverter(req: HttpRequest) -> impl Responder {
     let mut ip_count = 1000;
     let mut port_count = 10;
     let mut node_count: usize = 300;
-    let mut mtu_value: u16 = 1387; // 1387、1342、1304、1280
+    let mut mtu_value: u16 = 1280; // 1387、1342、1304、1280
     for (key, value) in params {
         if key == "target" {
             target = value.to_string();
