@@ -1,14 +1,19 @@
 use crate::utils::yaml::read_yaml_data;
 use rand::Rng;
 use serde_json::{json, Number, Value};
+use regex::Regex;
 
 pub fn generate_nekoray_nodes(ip_with_port_vec: Vec<String>, mtu_value: u16) -> String {
     let mut result: Vec<String> = Vec::new();
-    let yaml_file = "warp.yaml";
+    let yaml_file = "config/warp.yaml";
+    // 定义用于匹配 IP 地址和端口的正则表达式
+    let re = Regex::new(r#"\[?([^\]]+)\]?:([^:]+)"#).unwrap();
     match read_yaml_data(&yaml_file) {
         Ok(items) => {
             for ip_with_port in ip_with_port_vec {
-                if let [ip, port] = ip_with_port.split(":").collect::<Vec<&str>>()[..] {
+                if let Some(captures) = re.captures(&ip_with_port) {
+                    let ip: &str = captures.get(1).map_or("", |m| m.as_str());
+                    let port = captures.get(2).map_or("", |m| m.as_str());
                     /* 随机选择一个 warp_parameters 元素（warp账号信息） */
                     let mut rng = rand::thread_rng();
                     let random_index = rng.gen_range(0..items.get_warp_parameters().len());
@@ -19,8 +24,7 @@ pub fn generate_nekoray_nodes(ip_with_port_vec: Vec<String>, mtu_value: u16) -> 
                     let v4 = random_item.get_v4().clone();
                     let v6 = random_item.get_v6().clone();
 
-                    let nekoray_name = format!("warp-{}:{}", ip, port);
-                    // let mtu: u16 = 1387; // 1387、1280
+                    let nekoray_name = format!("warp-{}", ip_with_port);
 
                     /* 处理nekoray节点中cs键名对应的value值 */
                     // local_address地址

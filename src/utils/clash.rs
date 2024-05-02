@@ -9,6 +9,7 @@ use rand::Rng;
 use serde_json::Number;
 use serde_json::{json, Value};
 use std::collections::BTreeMap;
+use regex::Regex;
 
 /** 这里注释的全部代码，已经抽离到yaml.rs中 */
 /*
@@ -41,11 +42,15 @@ pub fn generate_clash_config(ip_with_port_vec: Vec<String>, mtu: u16) -> String 
         .collect();
     // 读取warp.yaml文件并生成json数据
     let mut json_nodes = Vec::new();
-    let yaml_file = "warp.yaml";
+    let yaml_file = "config/warp.yaml";
+    // 定义用于匹配 IP 地址和端口的正则表达式
+    let re = Regex::new(r#"\[?([^\]]+)\]?:([^:]+)"#).unwrap();
     match read_yaml_data(&yaml_file) {
         Ok(items) => {
             for ip_with_port in ip_with_port_vec {
-                if let [ip, port] = ip_with_port.split(":").collect::<Vec<&str>>()[..] {
+                if let Some(captures) = re.captures(&ip_with_port) {
+                    let ip: &str = captures.get(1).map_or("", |m| m.as_str());
+                    let port = captures.get(2).map_or("", |m| m.as_str());
                     /* 随机选择一个 warp_parameters 元素（warp账号信息） */
                     let mut rng = rand::thread_rng();
                     let random_index = rng.gen_range(0..items.get_warp_parameters().len());
@@ -58,7 +63,7 @@ pub fn generate_clash_config(ip_with_port_vec: Vec<String>, mtu: u16) -> String 
                     /* 将数据写入json中 */
                     let mut wireguard_map = BTreeMap::new();
                     wireguard_map
-                        .insert("name".to_string(), json!(format!("warp-{}:{}", ip, port)));
+                        .insert("name".to_string(), json!(format!("warp-{}", ip_with_port)));
                     wireguard_map.insert("type".to_string(), json!("wireguard"));
                     wireguard_map.insert("private-key".to_string(), json!(private_key));
                     wireguard_map.insert("server".to_string(), json!(ip));

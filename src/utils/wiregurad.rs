@@ -4,7 +4,7 @@ use urlencoding::encode;
 
 pub fn generate_wireguard_nodes(ip_with_port_vec: Vec<String>, mtu_value: u16) -> String {
     let mut result: Vec<String> = Vec::new();
-    let yaml_file = "warp.yaml";
+    let yaml_file = "config/warp.yaml";
     match read_yaml_data(&yaml_file) {
         Ok(items) => {
             for ip_with_port in ip_with_port_vec {
