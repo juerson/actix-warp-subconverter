@@ -79,17 +79,7 @@ pub fn generate_clash_config(ip_with_port_vec: Vec<String>, mtu: u16) -> String 
                     if !reserved.is_empty() {
                         wireguard_map.insert("reserved".to_string(), json!(reserved));
                     }
-                    wireguard_map.insert("remote-dns-resolve".to_string(), json!(true));
-                    wireguard_map.insert(
-                        "dns".to_string(),
-                        json!(vec![
-                            "1.1.1.1",
-                            "1.0.0.1",
-                            "2606:4700:4700::1111",
-                            "2606:4700:4700::1001"
-                        ]),
-                    );
-                    wireguard_map.insert("mtu".to_string(), json!(mtu)); // 1280、1387、1342、1304
+                    wireguard_map.insert("mtu".to_string(), json!(mtu)); // 1280
                     wireguard_map.insert("udp".to_string(), json!(true));
                     let json_value: Value = serde_json::to_value(wireguard_map).unwrap();
                     let json_str = serde_json::to_string(&json_value).unwrap();
