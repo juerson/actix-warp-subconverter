@@ -5,40 +5,23 @@ use crate::utils::config::RULES;
 use crate::utils::yaml::read_yaml_data;
 
 use rand::Rng;
-// use serde::Deserialize;
+use regex::Regex;
 use serde_json::Number;
 use serde_json::{json, Value};
 use std::collections::BTreeMap;
-use regex::Regex;
 
-/** 这里注释的全部代码，已经抽离到yaml.rs中 */
-/*
-    // #[derive(Debug, Deserialize)]
-    // struct WarpDate {
-    //     private_key: String,
-    //     public_key: String,
-    //     reserved: Option<Vec<u8>>,
-    //     v4: String,
-    //     v6: String,
-    // }
-
-    // #[derive(Debug, Deserialize)]
-    // struct WarpDates {
-    //     warp_parameters: Vec<WarpDate>,
-    // }
-
-    // fn read_yaml_data(yaml_file: &str) -> Result<WarpDates, Box<dyn std::error::Error>> {
-    //     let file = File::open(yaml_file)?;
-    //     let reader = BufReader::new(file);
-    //     let items: WarpDates = serde_yaml::from_reader(reader)?;
-    //     Ok(items)
-    // }
-*/
 pub fn generate_clash_config(ip_with_port_vec: Vec<String>, mtu: u16) -> String {
     // 复制一份数据并在每个元素前添加 "- "
     let proxies_name_vec: Vec<String> = ip_with_port_vec
         .iter()
-        .map(|address| format!("      - warp-{}", address))
+        .map(|address| {
+            let proxy_name = if address.chars().filter(|&c| c == ':').count() > 4 {
+                format!("      - {}", address.replace("[", "【").replace("]", "】"))
+            } else {
+                format!("      - warp-{}", address)
+            };
+            proxy_name.to_string()
+        })
         .collect();
     // 读取warp.yaml文件并生成json数据
     let mut json_nodes = Vec::new();
@@ -62,8 +45,12 @@ pub fn generate_clash_config(ip_with_port_vec: Vec<String>, mtu: u16) -> String 
                     let v6 = random_item.get_v6().clone();
                     /* 将数据写入json中 */
                     let mut wireguard_map = BTreeMap::new();
-                    wireguard_map
-                        .insert("name".to_string(), json!(format!("warp-{}", ip_with_port)));
+                    let proxy_name = if ip.chars().filter(|&c| c == ':').count() > 4 {
+                        format!("【{}】:{}", ip, port)
+                    } else {
+                        format!("warp-{}", ip_with_port)
+                    };
+                    wireguard_map.insert("name".to_string(), json!(proxy_name));
                     wireguard_map.insert("type".to_string(), json!("wireguard"));
                     wireguard_map.insert("private-key".to_string(), json!(private_key));
                     wireguard_map.insert("server".to_string(), json!(ip));

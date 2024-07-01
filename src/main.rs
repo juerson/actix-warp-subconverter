@@ -21,24 +21,25 @@ fn selected_ip_with_port<'a>(
     node_count: &'a usize,
     loc: &'a String,
     file_data: &'a bool,
+    ip_type: &'a u8,
 ) -> Vec<String> {
     if *file_data {
         let dir_path = "data"; // 自定义ip:port数据文件存在的文件夹里面
         let ip_with_port_vec = if let Ok(ip_with_port_vec) = read_ip_with_port_from_files(&dir_path)
         {
             if ip_with_port_vec.is_empty() {
-                generate_ip_with_port_vec(loc, ip_count, port_count) /* 生成的数据，防止读取到空数据 */
+                generate_ip_with_port_vec(loc, ip_count, port_count, ip_type) /* 生成的数据，防止读取到空数据 */
             } else {
                 ip_with_port_vec /* 读取的文件数据 */
             }
         } else {
-            generate_ip_with_port_vec(loc, ip_count, port_count) /* 生成的数据 */
+            generate_ip_with_port_vec(loc, ip_count, port_count, ip_type) /* 生成的数据 */
         };
         // 使用切边的方法：获取向量的前面node_count个元素（不足node_count个元素就获取全部元素），这个切片操作更为直接
         return ip_with_port_vec[..std::cmp::min(ip_with_port_vec.len(), *node_count)].to_vec();
     } else {
         /* 下面是生成的数据的相关代码 */
-        let ip_with_port_vec = generate_ip_with_port_vec(loc, ip_count, port_count);
+        let ip_with_port_vec = generate_ip_with_port_vec(loc, ip_count, port_count, ip_type);
         // 打乱地址向量并选择前node_count个元素
         let mut rng = thread_rng();
         let mut shuffled_addresses = ip_with_port_vec.clone(); // 克隆一份地址向量以免改变原始向量
@@ -54,16 +55,33 @@ fn selected_ip_with_port<'a>(
     }
 }
 
-fn generate_ip_with_port_vec(loc: &String, ip_count: &usize, port_count: &usize) -> Vec<String> {
-    let cidrs: Vec<&str> = if loc.to_lowercase() == "gb" {
+fn generate_ip_with_port_vec(
+    loc: &String,
+    ip_count: &usize,
+    port_count: &usize,
+    ip_type: &u8,
+) -> Vec<String> {
+    let cidrs: Vec<&str> = if loc.to_lowercase() == "gb" && ip_type.clone() == 4 {
         vec![
             "188.114.96.0/24",
             "188.114.97.0/24",
             "188.114.98.0/24",
             "188.114.99.0/24",
         ]
-    } else if loc.to_lowercase() == "us" {
+    } else if loc.to_lowercase() == "us" && ip_type.clone() == 4 {
         vec!["162.159.192.0/24", "162.159.193.0/24", "162.159.195.0/24"]
+    } else if loc == "" && ip_type.clone() == 6 {
+        vec!["2606:4700:d0::/48", "2606:4700:d1::/48"]
+    } else if loc == "" && ip_type.clone() == 4 {
+        vec![
+            "162.159.192.0/24",
+            "162.159.193.0/24",
+            "162.159.195.0/24",
+            "188.114.96.0/24",
+            "188.114.97.0/24",
+            "188.114.98.0/24",
+            "188.114.99.0/24",
+        ]
     } else {
         vec![
             "162.159.192.0/24",
@@ -73,6 +91,8 @@ fn generate_ip_with_port_vec(loc: &String, ip_count: &usize, port_count: &usize)
             "188.114.97.0/24",
             "188.114.98.0/24",
             "188.114.99.0/24",
+            "2606:4700:d0::/48",
+            "2606:4700:d1::/48",
         ]
     };
     let ips = generate_random_ip_in_cidrs(cidrs, *ip_count);
@@ -92,9 +112,13 @@ fn generate_ip_with_port_vec(loc: &String, ip_count: &usize, port_count: &usize)
     let addresses: Vec<String> = ips
         .iter()
         .flat_map(|ip| {
-            selected_ports
-                .iter()
-                .map(move |port| format!("{}:{}", ip, port))
+            selected_ports.iter().map(move |port| {
+                if ip.contains(":") {
+                    format!("[{}]:{}", ip, port)
+                } else {
+                    format!("{}:{}", ip, port)
+                }
+            })
         })
         .collect();
     addresses
@@ -122,6 +146,7 @@ async fn subconverter(req: HttpRequest) -> impl Responder {
     let mut fake_packets_size: String = "40-100".to_string(); // 用于修改hiddify的数据
     let mut fake_packets_delay: String = "".to_string(); // 用于修改hiddify的数据
     let mut file_data: bool = false; // 用于控制是否使用data文件夹下的txt、csv数据文件，默认false不使用
+    let mut ip_type: u8 = 4;
 
     for (key, value) in params {
         if key.to_lowercase() == "target" {
@@ -153,12 +178,23 @@ async fn subconverter(req: HttpRequest) -> impl Responder {
             if ["on", "1", "true"].contains(&value.to_lowercase().as_str()) {
                 file_data = true; // 用于控制是否使用data文件夹下的txt、csv数据文件
             }
+        } else if key.to_lowercase() == "iptype" {
+            if [4, 6].contains(&value.parse().unwrap_or(4)) {
+                ip_type = value.parse().unwrap_or(4);
+            } else {
+                ip_type = 4;
+            }
         } else {
-            //
         }
     }
-    let selected_ip_with_port_vec =
-        selected_ip_with_port(&ip_count, &port_count, &node_count, &loc, &file_data);
+    let selected_ip_with_port_vec = selected_ip_with_port(
+        &ip_count,
+        &port_count,
+        &node_count,
+        &loc,
+        &file_data,
+        &ip_type,
+    );
     if target.to_lowercase() == "clash" {
         HttpResponse::Ok()
             .content_type("text/plain; charset=utf-8")
@@ -202,9 +238,9 @@ async fn index(req: HttpRequest) -> impl Responder {
     );
 
     let web_address = format!("web服务地址：http://{}\n\n", host_address);
-    let syntax_info1 = format!("订阅地址格式：\nhttp://{}/sub?target=[clash,nekobox/nekoray,hiddify,v2rayn/wireguard]&ipCount=[1..?]&portCount=[1..54]&nodeCount=[1..?]&mtu=[1280..1500]&loc=[gb,us]\n\n",host_address);
+    let syntax_info1 = format!("订阅地址格式：\nhttp://{}/sub?target=[clash,nekobox/nekoray,hiddify,v2rayn/wireguard]&ipCount=[1..?]&portCount=[1..54]&nodeCount=[1..?]&mtu=[1280..1500]&loc=[gb,us]&iptype=[4 or 6]\n\n",host_address);
     let syntax_info2 = format!("target：要转换为的目标客户端（必须的），其它参数为可选参数。\n");
-    let parma_info = format!("ipCount: 从内置的CIDRs段中，选择随机生成多少个IP；\nportCount：从WARP支持的54个UDP端口中，选择随机多个端口；\nnodeCount：您想要生成多少个节点(最多节点数)；\nmtu：修改WireGuard节点的MTU值；\nloc：选择哪组CIDRs段(gb/us)的IP。\n\n");
+    let parma_info = format!("ipCount: 从内置的CIDRs段中，选择随机生成多少个IP；\nportCount：从WARP支持的54个UDP端口中，选择随机多个端口；\nnodeCount：您想要生成多少个节点(最多节点数)；\nmtu：修改WireGuard节点的MTU值；\nloc：选择哪组CIDRs段(gb/us)的IP;\niptype：选择IPV4地址为wireguard的端点，还是选择IPv6地址为wireguard的端点？默认是IPv4地址。\n\n");
     let loc_info1 =
         format!("loc=gb -> 188.114.96.0/24,188.114.97.0/24,188.114.98.0/24,188.114.99.0/24\n");
     let loc_info2 = format!("loc=us -> 162.159.192.0/24,162.159.193.0/24,162.159.195.0/24\n");
@@ -212,20 +248,30 @@ async fn index(req: HttpRequest) -> impl Responder {
     let example1 = format!("http://{host_address}/sub?target=clash&loc=us\n");
     let example2 = format!("http://{host_address}/sub?target=nekobox&loc=gb\n");
     let example3 = format!("http://{host_address}/sub?target=wireguard&loc=us\n");
-    let example_str = format!("{example1}{example2}{example3}");
+    let example4 = format!("http://{host_address}/sub?target=wireguard&iptype=6\n");
+    let example5 = format!("http://{host_address}/sub?target=clash&iptype=6\n");
+    let example_str = format!("{example1}{example2}{example3}{example4}{example5}");
     let hiddify1 = format!("\nHiddify相关\n\n");
-    let hiddify2 =
-        format!("【1】启用detour字段（detour=[1/true/on]，记住数字1即可）\n");
+    let hiddify2 = format!("【1】启用detour字段（detour=[1/true/on]，记住数字1即可）\n");
     let hiddify3 = format!("http://{}/sub?target=hiddify&detour=1\n", host_address);
-    let hiddify4 = format!("http://{}/sub?target=hiddify&detour=1&loc=gb\n", host_address);
-    let hiddify5 = format!("http://{}/sub?target=hiddify&detour=1&loc=us\n\n", host_address);
+    let hiddify4 = format!(
+        "http://{}/sub?target=hiddify&detour=1&loc=gb\n",
+        host_address
+    );
+    let hiddify5 = format!(
+        "http://{}/sub?target=hiddify&detour=1&loc=us\n\n",
+        host_address
+    );
     let hiddify6 =
         format!("【2】修改字段 fake_packets、fake_packets_size、fake_packets_delay 的值（如果网络无法连接，网速慢，可以尝试修改这些参数）\n");
     let hiddify7 = format!(
         "http://{}/sub?target=hiddify&fake_packets_delay=10-100\n",
         host_address
     );
-    let hiddify8 = format!("http://{}/sub?target=hiddify&fake_packets=10-20&fake_packets_delay=30-200\n",host_address);
+    let hiddify8 = format!(
+        "http://{}/sub?target=hiddify&fake_packets=10-20&fake_packets_delay=30-200\n",
+        host_address
+    );
     let hiddify9 = format!("http://{}/sub?target=hiddify&detour=1&loc=us&fake_packets=10-20&fake_packets_delay=30-200\n\n",host_address);
 
     let hiddify_info = format!(
