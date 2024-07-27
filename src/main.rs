@@ -311,8 +311,22 @@ async fn index(req: HttpRequest) -> impl Responder {
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
-    let bind: String = "127.0.0.1:18081".to_string();
-    println!("使用方法，打开 http://{} 查看", bind);
+    // 获取本机的私有IP地址
+    let local_ip = match local_ip_address::local_ip() {
+        Ok(ip) => ip,
+        Err(e) => {
+            eprintln!("Failed to get local IP address: {}", e);
+            return Ok(());
+        }
+    };
+    // 绑定的端口
+    let port = 18081;
+    println!(
+        "使用方法，打开: http://{}:{} 或 http://127.0.0.1:{}",
+        local_ip.to_string(),
+        port,
+        port
+    );
     // 启动 HTTP 服务器
     actix_web::HttpServer::new(|| {
         // 创建应用程序并注册路由
@@ -321,7 +335,7 @@ async fn main() -> std::io::Result<()> {
             .service(subconverter) // 注册路由
             .default_service(actix_web::web::route().to(default_route)) // 设置通配符路由处理函数
     })
-    .bind(bind)? // 绑定监听地址和端口
+    .bind(format!("0.0.0.0:{}", port))? // 监听所有 IPv4 地址
     .run() // 启动服务器
     .await // 等待服务器运行完成
 }
