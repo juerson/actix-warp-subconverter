@@ -1,31 +1,34 @@
-use encoding::all::GBK;
-use encoding::{DecoderTrap, Encoding};
+use encoding::{all::GBK, DecoderTrap, Encoding};
 use regex::Regex;
-use std::fs::{self, File};
-use std::io;
-use std::io::prelude::*;
-use std::io::BufReader;
-use std::collections::HashSet;
+use std::{
+    collections::HashSet,
+    fs::{self, File},
+    io::{self, prelude::*, BufReader},
+};
 
 pub fn read_ip_with_port_from_files(folder_path: &str) -> io::Result<Vec<String>> {
-    // 读取指定文件夹下的所有文件
-    let paths = fs::read_dir(folder_path)?;
-    // 定义用于匹配 IP 地址和端口的正则表达式
+    let paths = fs::read_dir(folder_path).expect("Failed to read directory");
+    // 匹配 IP 地址和端口
     let re = Regex::new(r"\b(?:[0-9]{1,3}\.){3}[0-9]{1,3}:[0-9]{1,5}\b|\[([0-9a-fA-F]{0,4}:){2,7}[0-9a-fA-F]{0,4}\]:[0-9]{1,5}").unwrap();
-    // 存储匹配到的 IP 地址和端口的向量
+
     let mut ip_with_port_vec: Vec<String> = Vec::new();
 
     // 遍历文件夹中的每个文件
     for path in paths {
-        let file_path = path?.path();
+        let file_path = path.unwrap().path();
         let file_extension = file_path.extension().unwrap_or_default();
+
         // 获取文件名
-        let file_name = file_path.file_name().unwrap().to_string_lossy();
+        let file_name = file_path
+            .file_name()
+            .expect("Failed to extract file name")
+            .to_string_lossy();
+
         // 排除以 "ips-v" 开头的文件
-        if file_name.starts_with("ips-v") {
+        if file_name.to_lowercase().starts_with("ips-v") {
             continue;
         }
-        // 如果文件扩展名是 txt 或 csv，则读取文件内容并匹配IP:PORT
+
         if let Some(ext) = file_extension.to_str() {
             if ext == "txt" || ext == "csv" {
                 if let Ok(bytes) = fs::read(&file_path) {
@@ -54,6 +57,7 @@ pub fn read_ip_with_port_from_files(folder_path: &str) -> io::Result<Vec<String>
             }
         }
     }
+
     // 使用 HashSet 去重
     let mut set: HashSet<String> = HashSet::new();
     let mut unique_ip_with_port_vec: Vec<String> = Vec::new();
@@ -64,5 +68,6 @@ pub fn read_ip_with_port_from_files(folder_path: &str) -> io::Result<Vec<String>
             unique_ip_with_port_vec.push(ip_with_port);
         }
     }
+
     Ok(unique_ip_with_port_vec)
 }

@@ -1,11 +1,13 @@
-use crate::utils::yaml::read_yaml_data;
+use super::yaml::read_yaml_data; // 相对路径引用
 use rand::Rng;
-use urlencoding::encode;
 
-pub fn generate_wireguard_nodes(ip_with_port_vec: Vec<String>, mtu_value: u16) -> String {
+pub fn generate_wireguard_nodes(
+    file_path: &str,
+    ip_with_port_vec: Vec<String>,
+    mtu_value: u16,
+) -> String {
     let mut result: Vec<String> = Vec::new();
-    let yaml_file = "config/warp.yaml";
-    match read_yaml_data(&yaml_file) {
+    match read_yaml_data(file_path) {
         Ok(items) => {
             for ip_with_port in ip_with_port_vec {
                 /* 随机选择一个 warp_parameters 元素（warp账号信息） */
@@ -41,16 +43,16 @@ pub fn generate_wireguard_nodes(ip_with_port_vec: Vec<String>, mtu_value: u16) -
                 }
                 // 对字符串进行url编码
                 let remarks = format!("warp-{ip_with_port}");
-                let encoded_remarks = encode(&remarks);
-                let encoded_privatekey = encode(&private_key);
-                let encoded_publickey = encode(&public_key);
-                let encoded_local_address = encode(&local_address_string);
+                let encoded_remarks = urlencoding::encode(&remarks);
+                let encoded_privatekey = urlencoding::encode(&private_key);
+                let encoded_publickey = urlencoding::encode(&public_key);
+                let encoded_local_address = urlencoding::encode(&local_address_string);
 
                 let wireguardlinks;
                 if reserved_string.is_empty() {
                     wireguardlinks = format!("wireguard://{encoded_privatekey}@{ip_with_port}/?publickey={encoded_publickey}&address={encoded_local_address}&mtu={mtu_value}#{encoded_remarks}");
                 } else {
-                    let encodeed_reserved = encode(&reserved_string); // 对reserved_string进行url编码
+                    let encodeed_reserved = urlencoding::encode(&reserved_string); // 对reserved_string进行url编码
                     wireguardlinks = format!("wireguard://{encoded_privatekey}@{ip_with_port}/?publickey={encoded_publickey}&reserved={encodeed_reserved}&address={encoded_local_address}&mtu={mtu_value}#{encoded_remarks}");
                 }
 

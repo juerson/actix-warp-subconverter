@@ -1,13 +1,14 @@
-use crate::utils::yaml::read_yaml_data;
+use super::yaml::{read_yaml_data, WarpDate}; // 相对路径引用
 use rand::Rng;
-use serde_json::{from_str, json, to_string_pretty};
-use std::fs::File;
-use std::io::{BufReader, Read};
 use regex::Regex;
-
-use super::yaml::WarpDate;
+use serde_json::{from_str, json, to_string_pretty};
+use std::{
+    fs::File,
+    io::{BufReader, Read},
+};
 
 pub fn generate_hiddify_config(
+    files: Vec<&str>,
     ip_with_port_vec: Vec<String>,
     mtu_value: u16,
     detour: bool,
@@ -15,27 +16,24 @@ pub fn generate_hiddify_config(
     fake_packets_size: String,
     fake_packets_delay: String,
 ) -> String {
-    let [yaml_file, hiddify_file] = ["config/warp.yaml", "config/hiddify.json"];
+    let [yaml_file, hiddify_file] = [files[0], files[1]];
+
     let mut results = Vec::new();
     let mut proxy_name_vec = Vec::new();
-    let selected_vec: &[String] = if detour {
-        // 选择前50个元素（如果元素少于50个，将选择整个向量）
-        &ip_with_port_vec[..std::cmp::min(ip_with_port_vec.len(), 50)]
-    } else {
-        &ip_with_port_vec
-    };
+
     let fake_packets_delay_str = if !detour && fake_packets_delay.is_empty() {
-        "15-100".to_string() // 不是detour模式，且fake_packets_delay为空，则使用默认值
-    } else if detour && fake_packets_delay.is_empty(){
-        "20-100".to_string() // 是detour模式，且fake_packets_delay为空，则使用默认值
+        "15-100".to_string()
+    } else if detour && fake_packets_delay.is_empty() {
+        "20-100".to_string()
     } else {
-        fake_packets_delay.clone() // 传入值不为空，则使用传入值
+        fake_packets_delay.clone()
     };
-    // 定义用于匹配 IP 地址和端口的正则表达式
+
+    // 匹配 IP 地址和端口
     let re = Regex::new(r#"\[?([^\]]+)\]?:([^:]+)"#).unwrap();
     match read_yaml_data(yaml_file) {
         Ok(items) => {
-            for ip_with_port in selected_vec {
+            for ip_with_port in ip_with_port_vec {
                 if let Some(captures) = re.captures(&ip_with_port) {
                     let ip: &str = captures.get(1).map_or("", |m| m.as_str());
                     let port = captures.get(2).map_or("", |m| m.as_str());
@@ -45,9 +43,11 @@ pub fn generate_hiddify_config(
                     let random_item = &items.get_warp_parameters()[random_key_index];
                     let (private_key, public_key, reserved_vec, v4, v6) =
                         get_wireguard_params(random_item);
+
                     // 节点的名称
                     let tag_name = format!("warp-{}", ip_with_port);
                     proxy_name_vec.push(tag_name.clone());
+
                     let node_json = json!({
                       "type": "wireguard",
                       "tag": tag_name,
@@ -76,9 +76,9 @@ pub fn generate_hiddify_config(
                     {
                         "🇬🇧"
                     } else {
-                        "❓"
-                    }
-                    .to_string();
+                        "🚩"
+                    };
+
                     // 链式代理
                     if detour && items.get_warp_parameters().len() > 1 {
                         /* 随机选择一个 warp_parameters 元素（warp账号信息） */
@@ -119,8 +119,8 @@ pub fn generate_hiddify_config(
         }
         Err(err) => eprintln!("Error reading YAML file: {}", err),
     }
-    // 读取hiddify.json文件
-    let file = File::open(hiddify_file).unwrap();
+
+    let file = File::open(hiddify_file).expect("读取hiddify配置模板文件失败！");
     let mut reader = BufReader::new(file);
     let mut contents = String::new();
     reader.read_to_string(&mut contents).unwrap();
@@ -136,7 +136,7 @@ pub fn generate_hiddify_config(
     // 合并到尾部
     // value["outbounds"].as_array_mut().unwrap().extend(results.clone());
 
-    // 合并到指定位置serde_json::Value
+    // 合并到指定位置
     let index = 2;
     value["outbounds"]
         .as_array_mut()

@@ -1,8 +1,10 @@
 pub mod clash;
-pub mod config;
-pub mod ips;
-pub mod yaml;
-pub mod nekoray;
-pub mod wiregurad;
-pub mod hiddify;
 pub mod data;
+pub mod hiddify;
+pub mod ips;
+pub mod nekoray;
+pub mod singbox;
+pub mod sn_wg;
+pub mod sn_wgs;
+pub mod wiregurad;
+pub mod yaml;

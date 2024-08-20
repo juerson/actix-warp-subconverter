@@ -1,0 +1,71 @@
+软件功能：WARP 转换为 Clash、NekoBox、Hiddify-next、v2rayN/v2rayNG、GUI for SingBox 客户端的订阅!
+
+web服务地址：http://127.0.0.1:18081
+
+订阅地址格式：
+http://127.0.0.1:18081/sub?target=[clash,nekoray/nekobox,hiddify,v2ray/v2rayn/wireguard,singbox,sn]&ipcount=[1..?]&portcount=[1..54]&nodecount=[1..?]&mtu=[1280..1500]&loc=[gb,us]&iptype=[4,6]&fake_packets=?&fake_packets_size=?&fake_packets_delay=?&filedata=[true,false]?&iptype=[4,6]
+
+target：要转换为的目标客户端（必须的），其它参数为可选参数；
+ipCount: 从内置的CIDRs段中，选择随机生成多少个IP；
+portCount：从WARP支持的54个UDP端口中，选择随机多个端口；
+nodeCount：您想要生成多少个节点(最多节点数)；
+     wireguard/v2ray默认300个
+     nekoray默认300个（Nekobox for PC）
+     sn默认300个（Nekobox for Android）
+     clash默认200个
+     hiddify默认200个，hiddify+detour默认100个（nodeCount * 2）
+     singbox默认100个
+mtu：修改WireGuard节点的MTU值；
+iptype：选择IPV4地址为wireguard的端点，还是选择IPv6地址为wireguard的端点？默认是IPv4地址；
+loc：选择哪组CIDRs段(gb/us)的IP;
+     loc=gb：指 188.114.96.0/24,188.114.97.0/24,188.114.98.0/24,188.114.99.0/24 的IP段；
+     loc=us：指 162.159.192.0/24,162.159.193.0/24,162.159.195.0/24 的IP段;
+filedata: filedata=1/ture,表示使用WARP优选的CSV文件数据。
+
+订阅示例：
+http://127.0.0.1:18081/sub?target=v2ray
+http://127.0.0.1:18081/sub?target=singbox
+http://127.0.0.1:18081/sub?target=nekoray
+http://127.0.0.1:18081/sub?target=clash
+http://127.0.0.1:18081/sub?target=hiddify
+http://127.0.0.1:18081/sub?target=sn
+
+http://127.0.0.1:18081/sub?target=v2ray&nodecount=1000
+http://127.0.0.1:18081/sub?target=wireguard&iptype=6
+http://127.0.0.1:18081/sub?target=clash&iptype=6
+
+http://127.0.0.1:18081/sub?target=clash&loc=us
+http://127.0.0.1:18081/sub?target=nekobox&loc=gb
+http://127.0.0.1:18081/sub?target=wireguard&loc=us
+http://127.0.0.1:18081/sub?target=clash&filedata=1
+
+注意：loc参数与filedata=1的参数(使用文件里面的优选IP)不能同时使用，同时使用会忽略loc参数。
+
+
+Hiddify相关参数：
+
+【1】启用detour字段（detour=[1/true/on]，记住数字1或true即可）
+http://127.0.0.1:18081/sub?target=hiddify&detour=1
+http://127.0.0.1:18081/sub?target=hiddify&detour=1&loc=gb
+http://127.0.0.1:18081/sub?target=hiddify&detour=1&loc=us
+
+【2】修改字段 fake_packets、fake_packets_size、fake_packets_delay 的值（如果网络无法连接，网速慢，可以尝试修改这些参数）
+http://127.0.0.1:18081/sub?target=hiddify&fake_packets_delay=10-100
+http://127.0.0.1:18081/sub?target=hiddify&fake_packets=10-20&fake_packets_delay=30-200
+http://127.0.0.1:18081/sub?target=hiddify&detour=1&loc=us&fake_packets=10-20&fake_packets_delay=30-200
+
+
+使用WARP优选的CSV文件数据，制作订阅链接：
+【1】将优选IP的文件(txt、csv文件)放到data文件夹中，文件名称随意。
+【2】打开本地web服务(您能看到这个页面就是打开了本地web服务)，在目标客户端的订阅地址中添加参数 filedata=[1/true/on]，记住数字1即可)
+http://127.0.0.1:18081/sub?target=v2ray&filedata=1
+http://127.0.0.1:18081/sub?target=nekoray&filedata=1
+http://127.0.0.1:18081/sub?target=clash&filedata=1
+http://127.0.0.1:18081/sub?target=hiddify&filedata=1
+
+
+使用注意：
+【1】支持热更新，不需要重启服务，也就是，web服务一直打开，优选IP后，更新订阅就能使用新优选的IP。
+【2】"ips-v"开头的文件被忽略了，比如：ips-v4.txt、ips-v6.txt，可以放心地将WARP优选IP的程序放到这个data文件夹里面，随时优选IP。
+【3】默认使用读取到的前300个IP:PORT，如果文件不存在、数据为空，则使用内置CIDRs段中生成的随机IP:PORT。
+【4】一定要记住：使用文件的优选IP数据，数据格式必须含IP:PORT格式的数据，才能被正则匹配到，否则读取不到数据，反而使用内置CIDRs段中生成的随机IP:PORT。
